@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vinted Tracker</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#007782">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vinted Tracker">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icon-512.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="styles.css?v=1">
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <div class="brand">Vinted<b>Tracker</b></div>
+      <nav id="nav">
+        <button class="nav on" data-view="dashboard"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg><span>Dashboard</span></button>
+        <button class="nav" data-view="stock"><svg viewBox="0 0 24 24"><path d="M20 7h-4V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a1 1 0 0 0-1-1zM10 5h4v2h-4z"/></svg><span>Stock</span></button>
+        <button class="nav" data-view="sold"><svg viewBox="0 0 24 24"><path d="M21.4 11.6l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7c0 .6.2 1.1.6 1.4l9 9a2 2 0 0 0 2.8 0l7-7a2 2 0 0 0 0-2.8zM6.5 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Sold</span></button>
+        <button class="nav" data-view="expenses"><svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v14l3-2 3 2 3-2 3 2 3-2 3 2V5a2 2 0 0 0-2-2zm-3 12H8v-2h8zm0-4H8V9h8zm0-4H8V5h8z"/></svg><span>Expenses</span></button>
+      </nav>
+      <div class="side-foot">
+        <a id="sheetLink" target="_blank" rel="noopener">Open the sheet</a>
+        <button id="forgetKey" type="button">Lock this device</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div id="banner"></div>
+      <section id="view-dashboard" class="view"></section>
+      <section id="view-stock" class="view"></section>
+      <section id="view-sold" class="view"></section>
+      <section id="view-expenses" class="view"></section>
+      <div id="loading" class="loading"><div class="spin"></div><p>Loading your stock…</p></div>
+    </main>
+  </div>
+
+  <button class="fab" id="fab" aria-label="Add item"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg><span>Add item</span></button>
+
+  <div class="sheet-wrap" id="sheet" aria-hidden="true">
+    <div class="sheet-bg" data-close></div>
+    <div class="sheet-panel" role="dialog" aria-modal="true"><div id="sheetBody"></div></div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js?v=1"></script>
+</body>
+</html>
