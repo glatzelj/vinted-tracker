@@ -28,7 +28,7 @@ svg{fill:currentColor}
 .shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
 .side{padding:26px 16px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;border-right:1px solid var(--line);background:rgba(10,14,15,.6);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.03em;padding:0 8px 22px}
-.brand img{width:34px;height:34px;border-radius:10px}
+
 .brand b{color:var(--teal-hi);font-weight:800}
 #nav{display:flex;flex-direction:column;gap:4px}
 .nav{display:flex;align-items:center;gap:12px;background:none;border:0;color:var(--muted);font-weight:700;font-size:14px;padding:12px 14px;border-radius:var(--r-md);text-align:left;transition:background .15s,color .15s}
@@ -169,8 +169,6 @@ svg{fill:currentColor}
 .card:hover{transform:translateY(-2px);border-color:var(--line-2)}
 .ph{position:relative;aspect-ratio:4/5;background:var(--surface-2);overflow:hidden;width:100%}
 .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-/* Soft teal grade over every photo so they sit with the app's colours. */
-.ph.has::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,119,130,.06) 0%,rgba(0,119,130,0) 40%,rgba(0,40,45,.55) 100%);pointer-events:none}
 .ph-none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);background:radial-gradient(circle at 50% 40%,var(--surface-3),var(--surface-2) 70%)}
 .ph-none svg{width:42%;max-width:72px;height:auto;opacity:.55}
 .ph .pill{position:absolute;top:10px;left:10px;z-index:1}
@@ -279,7 +277,7 @@ svg{fill:currentColor}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 .toast.err{background:var(--bad);color:#1A0805}
 .keybox{max-width:420px;margin:30px auto;display:flex;flex-direction:column;gap:14px;text-align:center}
-.keybox img{width:88px;height:88px;border-radius:24px;align-self:center;box-shadow:0 20px 40px -18px rgba(0,119,130,.9)}
+.keybox .logo-mark{align-self:center}
 .keybox h2{margin:0;font-size:26px;font-weight:800;letter-spacing:-.03em}
 .keybox p{margin:0;color:var(--muted);font-size:14px}
 .keybox input{border:1px solid var(--line-2);background:var(--surface);border-radius:var(--r-pill);padding:14px 18px;font-size:16px;text-align:center;outline:none;width:100%;color:var(--ink)}
@@ -407,3 +405,13 @@ details.adv[open] .fields{margin-top:14px}
   .hero-row b{font-size:15px}
   .p-stats b{font-size:17px}
 }
+
+/* App logo with an iOS-style rounded glass edge */
+.logo-mark{position:relative;display:inline-block;flex:none;width:46px;height:46px;border-radius:24%;overflow:hidden;box-shadow:0 10px 24px -12px rgba(0,150,165,.9)}
+.logo-mark img{width:100%;height:100%;object-fit:cover;display:block}
+.logo-mark::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.28),inset 0 2px 6px rgba(255,255,255,.22);background:linear-gradient(160deg,rgba(255,255,255,.18),rgba(255,255,255,0) 38%);pointer-events:none}
+.logo-mark.sm{width:34px;height:34px}
+.logo-mark.big{width:96px;height:96px;box-shadow:0 24px 48px -20px rgba(0,150,165,.95)}
+.top .logo-mark{margin-right:12px}
+.top .hello{flex:1}
+.hello small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
