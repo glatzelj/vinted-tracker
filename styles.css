@@ -421,3 +421,24 @@ details.adv[open] .fields{margin-top:14px}
 .f .dt input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;min-height:0;padding:0;border:0;margin:0;cursor:pointer}
 .dt:focus-within{border-color:var(--teal-hi);box-shadow:0 0 0 3px var(--teal-soft)}
 .f label.dt{font-size:16px;font-weight:500;color:var(--ink)}
+
+/* To Post + Needs Checking */
+.post-panel{border-color:rgba(242,180,90,.35)}
+.check-panel{border-color:rgba(31,181,193,.45);background:linear-gradient(180deg,rgba(0,119,130,.12),var(--surface))}
+.act-list{display:flex;flex-direction:column;gap:10px}
+.act{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2);min-width:0}
+.act.col{flex-direction:column;align-items:stretch}
+.act-top{display:flex;align-items:center;gap:12px;min-width:0}
+.act .mid{flex:1;min-width:0}
+.act .mid b{display:block;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.act .mid span{font-size:12px;color:var(--muted);font-weight:600}
+.act .th{width:44px;height:54px;flex:none}
+.act .ex-ic svg{width:20px;height:20px}
+.act-do{display:flex;gap:8px;flex-wrap:wrap}
+.act-do .select{flex:1 1 200px;min-width:0;padding-top:9px;padding-bottom:9px;font-size:13px}
+.due{flex:none;font-size:12px;font-weight:800;padding:4px 9px;border-radius:var(--r-pill);font-variant-numeric:tabular-nums}
+.due.good{background:var(--good-soft);color:var(--good)} .due.warn{background:var(--warn-soft);color:var(--warn)} .due.bad{background:var(--bad-soft);color:var(--bad)}
+.box.suggest{border-color:rgba(31,181,193,.45)}
+.sug-row{display:flex;align-items:center;gap:14px}
+.sug-row b{font-size:30px;font-weight:800;letter-spacing:-.04em;color:var(--teal-hi);font-variant-numeric:tabular-nums}
+.sug-row span{font-size:13px;color:var(--muted);font-weight:600}
