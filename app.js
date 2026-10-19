@@ -145,13 +145,13 @@
   }
   const inRange = (iso, r) => !!iso && iso >= r[0] && iso <= r[1];
 
-  function header(title, accent, sub) {
+  function header(title, accent, sub, logo) {
     const now = new Date();
     const h = now.getHours();
     const greet = h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening';
     return `<div class="top">
-      <div class="hello"><small>${greet} · ${DAYS[now.getDay()]} ${now.getDate()} ${MONTHS_LONG[now.getMonth()]}</small>
-      <h1>${esc(title)}${accent ? ' <em>' + esc(accent) + '</em>' : ''}</h1></div>
+      ${logo ? '<span class="logo-mark"><img src="logo.jpg" alt=""></span>' : ''}<div class="hello"><small>${greet} · ${DAYS[now.getDay()]} ${now.getDate()} ${MONTHS_LONG[now.getMonth()]}</small>
+      <h1>${esc(title)}${accent ? (title ? ' ' : '') + '<em>' + esc(accent) + '</em>' : ''}</h1></div>
       <div class="top-btns"><button class="icon-btn" data-refresh aria-label="Refresh">${ICON.refresh}</button><button class="icon-btn" data-goto="settings" aria-label="Settings">${ICON.gear}</button></div>
     </div>${sub ? `<p class="sub">${sub}</p>` : ''}`;
   }
@@ -178,7 +178,7 @@
 
     const v = $('#view-dashboard');
     v.innerHTML = `
-      ${header('Your', 'Dashboard')}
+      ${header('', 'Dashboard', '', true)}
       ${profileCard()}
       <div class="hero">
         <div class="seg" id="periodSeg">
@@ -397,7 +397,7 @@
 
     const v = $('#view-stock');
     v.innerHTML = `
-      ${header('Your', 'Stock', `${items.length} items not sold yet · ${items.filter(isBiz).length} business, ${items.filter(i => !isBiz(i)).length} personal · business stock ${gbp(sum(items.filter(isBiz), i => isNum(i.cost) ? i.cost : 0))} at cost`)}
+      ${header('', 'Stock', `${items.length} items not sold yet · ${items.filter(isBiz).length} business, ${items.filter(i => !isBiz(i)).length} personal · business stock ${gbp(sum(items.filter(isBiz), i => isNum(i.cost) ? i.cost : 0))} at cost`)}
       <div class="toolbar">
         <label class="search">${ICON.search}<input id="stockQ" type="search" placeholder="Search SKU, Brand, Title, Size…" value="${esc(f.q)}"></label>
         <select class="select" id="stockCat">${cats.map(c => `<option value="${esc(c)}" ${c === f.cat ? 'selected' : ''}>${c === 'All' ? 'All Categories' : esc(c)}</option>`).join('')}</select>
@@ -448,7 +448,7 @@
 
     const v = $('#view-sold');
     v.innerHTML = `
-      ${header('Your', 'Sales', `${list.length} sales · ${gbp(rev)} revenue · ${gbp(prof)} profit before expenses`)}
+      ${header('', 'Sales', `${list.length} sales · ${gbp(rev)} revenue · ${gbp(prof)} profit before expenses`)}
       <div class="toolbar">
         <div class="seg" id="useSeg">${['Business', 'Personal', 'All'].map(u => `<button data-u="${u}" class="${f.use === u ? 'on' : ''}">${u}</button>`).join('')}</div>
         <label class="search">${ICON.search}<input id="soldQ" type="search" placeholder="Search Sold Items…" value="${esc(f.q)}"></label>
@@ -484,7 +484,7 @@
     const max = Math.max(...Object.values(byCat), 1);
     const v = $('#view-expenses');
     v.innerHTML = `
-      ${header('Your', 'Expenses', `${all.length} expenses · ${gbp(sum(all, e => e.amount))} in total · all counted as business costs`)}
+      ${header('', 'Expenses', `${all.length} expenses · ${gbp(sum(all, e => e.amount))} in total · all counted as business costs`)}
       <div class="toolbar"><button class="btn" id="addEx">${ICON.plus}Add Expense</button></div>
       <div class="grid2">
         <div class="list">${list.length ? list.map(e => `<button class="li ex" data-row="${e.row}"><div class="ex-ic">${esc((e.category || '?').slice(0, 2).toUpperCase())}</div>
@@ -748,6 +748,25 @@
   function busy(sel, on) { const b = $(sel); if (!b) return; b.disabled = on; if (on) { b.dataset.t = b.textContent; b.textContent = 'Saving…'; } else if (b.dataset.t) b.textContent = b.dataset.t; }
 
   // ---------- photos ----------
+  // Gentle auto-exposure, only when a photo is dull or dark: lifts it so the brightest 1% sits near white.
+  function autoExpose(ctx, w, h) {
+    try {
+      const d = ctx.getImageData(0, 0, w, h), px = d.data, hist = new Array(256).fill(0);
+      let n = 0, total = 0;
+      for (let i = 0; i < px.length; i += 16) { const l = (px[i] * 299 + px[i + 1] * 587 + px[i + 2] * 114) / 1000 | 0; hist[l]++; total += l; n++; }
+      let c = 0, p99 = 255;
+      for (let v = 0; v < 256; v++) { c += hist[v]; if (c >= n * 0.99) { p99 = v; break; } }
+      const mean = total / n;
+      let gain = 1;
+      if (p99 < 238) gain = Math.min(1.3, 245 / Math.max(p99, 1));
+      if (mean * gain < 105) gain = Math.min(1.35, Math.max(gain, 115 / Math.max(mean, 1)));
+      if (gain < 1.04) return;
+      for (let i = 0; i < px.length; i += 4) {
+        for (let k = 0; k < 3; k++) { const v = (px[i + k] * gain - 128) * 1.04 + 128; px[i + k] = v < 0 ? 0 : v > 255 ? 255 : v; }
+      }
+      ctx.putImageData(d, 0, 0);
+    } catch (e) { /* leave the photo as it is */ }
+  }
   function shrink(file, max) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -755,7 +774,9 @@
         const s = Math.min(1, (max || 1200) / Math.max(img.width, img.height));
         const c = document.createElement('canvas');
         c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        autoExpose(ctx, c.width, c.height);
         resolve(c.toDataURL('image/jpeg', 0.82).split(',')[1]);
         URL.revokeObjectURL(img.src);
       };
@@ -923,7 +944,7 @@
     const d = S.data, st = d.settings, p = d.profile || {}, ai = d.ai || {}, corners = prefs().corners || 'round';
     const v = $('#view-settings');
     v.innerHTML = `
-      ${header('Your', 'Settings')}
+      ${header('', 'Settings')}
       <div class="set-grid">
         <div class="panel">
           <h3>Vinted Profile</h3>
@@ -1038,7 +1059,7 @@
     $$('.view').forEach(v => v.classList.remove('on'));
     $('#banner').innerHTML = '';
     l.innerHTML = `<form class="keybox" id="keyForm">
-      <img src="logo.png" alt="">
+      <span class="logo-mark big"><img src="logo.jpg" alt=""></span>
       <h2>Vint<span style="color:var(--teal-hi)">Vault</span></h2>
       <p>Enter your app key to unlock your data. You only need to do this once on each device.</p>
       ${msg ? `<p class="err">${esc(msg)}</p>` : ''}
