@@ -2,35 +2,37 @@
 <html lang="en-GB">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Vinted Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>VintVault</title>
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#007782">
+  <meta name="theme-color" content="#0A0E0F">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Vinted Tracker">
+  <meta name="apple-mobile-web-app-title" content="VintVault">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" href="icon-512.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap">
-  <link rel="stylesheet" href="styles.css?v=1">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
   <div class="shell">
     <aside class="side">
-      <div class="brand">Vinted<b>Tracker</b></div>
+      <div class="brand"><img src="logo.png" alt="">Vint<b>Vault</b></div>
       <nav id="nav">
-        <button class="nav on" data-view="dashboard"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg><span>Dashboard</span></button>
+        <button class="nav on" data-view="dashboard"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg><span>Home</span></button>
         <button class="nav" data-view="stock"><svg viewBox="0 0 24 24"><path d="M20 7h-4V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a1 1 0 0 0-1-1zM10 5h4v2h-4z"/></svg><span>Stock</span></button>
+        <button class="nav" data-view="list"><svg viewBox="0 0 24 24"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 1.8 1.8.7-1.8.7L5 20l-.7-1.8-1.8-.7 1.8-.7z"/></svg><span>List</span></button>
+        <button class="nav add" data-add aria-label="Add item"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg><span>Add</span></button>
         <button class="nav" data-view="sold"><svg viewBox="0 0 24 24"><path d="M21.4 11.6l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7c0 .6.2 1.1.6 1.4l9 9a2 2 0 0 0 2.8 0l7-7a2 2 0 0 0 0-2.8zM6.5 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Sold</span></button>
         <button class="nav" data-view="expenses"><svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v14l3-2 3 2 3-2 3 2 3-2 3 2V5a2 2 0 0 0-2-2zm-3 12H8v-2h8zm0-4H8V9h8zm0-4H8V5h8z"/></svg><span>Expenses</span></button>
+        <button class="nav desk" data-view="settings"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg><span>Settings</span></button>
       </nav>
       <div class="side-foot">
-        <a id="sheetLink" target="_blank" rel="noopener">Open the sheet</a>
-        <button id="forgetKey" type="button">Lock this device</button>
+        <a id="sheetLink" target="_blank" rel="noopener">Open the Sheet</a>
+        <button id="forgetKey" type="button">Lock This Device</button>
       </div>
     </aside>
 
@@ -40,11 +42,13 @@
       <section id="view-stock" class="view"></section>
       <section id="view-sold" class="view"></section>
       <section id="view-expenses" class="view"></section>
-      <div id="loading" class="loading"><div class="spin"></div><p>Loading your stock…</p></div>
+      <section id="view-list" class="view"></section>
+      <section id="view-settings" class="view"></section>
+      <div id="loading" class="loading"><div class="spin"></div><p>Loading Your Stock…</p></div>
     </main>
   </div>
 
-  <button class="fab" id="fab" aria-label="Add item"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg><span>Add item</span></button>
+  <button class="fab" data-add aria-label="Add item"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg><span>Add</span></button>
 
   <div class="sheet-wrap" id="sheet" aria-hidden="true">
     <div class="sheet-bg" data-close></div>
@@ -52,6 +56,6 @@
   </div>
   <div id="toast" class="toast"></div>
 
-  <script src="app.js?v=1"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
