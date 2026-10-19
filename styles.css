@@ -412,6 +412,12 @@ details.adv[open] .fields{margin-top:14px}
 .logo-mark::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.28),inset 0 2px 6px rgba(255,255,255,.22);background:linear-gradient(160deg,rgba(255,255,255,.18),rgba(255,255,255,0) 38%);pointer-events:none}
 .logo-mark.sm{width:34px;height:34px}
 .logo-mark.big{width:96px;height:96px;box-shadow:0 24px 48px -20px rgba(0,150,165,.95)}
-.top .logo-mark{margin-right:12px}
-.top .hello{flex:1}
+.hd-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.hd-left .hello{flex:1;min-width:0}
 .hello small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* DD/MM/YYYY date boxes */
+.dt{position:relative;display:flex;align-items:center;border:1px solid var(--line-2);background:var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238C9695'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V9h14z'/%3E%3C/svg%3E") no-repeat right 10px center/18px;border-radius:var(--r-sm);min-height:48px;padding:0 36px 0 12px;font-size:16px;font-variant-numeric:tabular-nums;cursor:pointer;min-width:0}
+.dt span{white-space:nowrap;overflow:hidden}
+.f .dt input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;min-height:0;padding:0;border:0;margin:0;cursor:pointer}
+.dt:focus-within{border-color:var(--teal-hi);box-shadow:0 0 0 3px var(--teal-soft)}
+.f label.dt{font-size:16px;font-weight:500;color:var(--ink)}
