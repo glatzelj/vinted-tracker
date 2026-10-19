@@ -9,6 +9,9 @@
     stock: { q: '', status: 'All', cat: 'All', sort: 'newest', aged: '' },
     sold: { q: '', use: 'Business', month: 'All' },
     exCat: 'All',
+    insTab: 'report',
+    report: { month: null },
+    lead: { by: 'brand', sort: 'profit', period: 'all' },
     lastList: [],
     loadedAt: 0,
     draft: { photos: [], notes: '', result: null, busy: false }
@@ -180,6 +183,7 @@
     v.innerHTML = `
       ${header('', 'Dashboard', '', true)}
       ${profileCard()}
+      ${insightCards()}
       ${actionPanels()}
       <div class="hero">
         <div class="seg" id="periodSeg">
@@ -233,6 +237,7 @@
     $$('[data-band]', v).forEach(b => b.onclick = () => { S.stock.status = 'All'; S.stock.aged = b.dataset.band; S.stock.sort = 'oldest'; go('stock'); });
     $$('[data-sheet]', v).forEach(b => b.onclick = () => window.open(d.sheetUrl, '_blank'));
     const pe = $('#editProfile', v); if (pe) pe.onclick = openProfile;
+    $$('[data-ins]', v).forEach(b => b.onclick = () => { S.insTab = b.dataset.ins; S.report.month = null; go('insights'); });
   }
   // ---------- To Post + Needs Checking (from the Gmail reader) ----------
   function actionPanels() {
@@ -428,6 +433,284 @@
       ${m(`Vinted Income in ${yr}`, calIncome, st.hmrcIncome, v => gbp(v, 0))}
       ${m(`Business Income to ${ukDate(tyEnd)}`, tyIncome, st.allowance, v => gbp(v, 0))}
       <p class="fine">Vinted tells HMRC about sellers with ${st.hmrcSales}+ sales or about £${st.hmrcIncome.toLocaleString('en-GB')} in a calendar year. The £${st.allowance.toLocaleString('en-GB')} trading allowance is per tax year, on income before costs.</p>`;
+  }
+
+  // ---------- insights: monthly report + leaderboard ----------
+  const bizSales = () => S.data.items.filter(i => isBiz(i) && isSold(i) && i.soldOn);
+  const shiftMonth = (key, n) => { const [y, m] = key.split('-').map(Number); const d = new Date(Date.UTC(y, m - 1 + n, 1)); return d.toISOString().slice(0, 7); };
+  const daysIn = key => { const [y, m] = key.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).getUTCDate(); };
+  function weekOf(iso) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); }
+  const addDays = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10);
+
+  function reportMonths() {
+    const first = bizSales().map(i => monthKey(i.soldOn)).sort()[0];
+    const now = monthKey(S.data.today), out = [];
+    for (let k = first || now; k <= now; k = shiftMonth(k, 1)) out.push(k);
+    return out;
+  }
+  // The fresh report is last month's during the first week, otherwise this month so far.
+  const defaultReport = () => Number(S.data.today.slice(8)) <= 7 ? shiftMonth(monthKey(S.data.today), -1) : monthKey(S.data.today);
+
+  function monthStats(key) {
+    const sold = bizSales().filter(i => monthKey(i.soldOn) === key);
+    const known = sold.filter(i => profitOf(i) != null);
+    const gross = sum(known, profitOf);
+    const exp = sum(S.data.expenses.filter(e => monthKey(e.date) === key), e => isNum(e.amount) ? e.amount : 0);
+    const days = sold.filter(i => i.boughtOn).map(i => daysBetween(i.boughtOn, i.soldOn));
+    const bought = S.data.items.filter(i => isBiz(i) && monthKey(i.boughtOn) === key);
+    return {
+      key, sold, known, n: sold.length, rev: sum(sold, i => i.soldFor), gross, exp, net: gross - exp,
+      avgProfit: known.length ? gross / known.length : null,
+      avgDays: days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : null,
+      bought: bought.length, spent: sum(bought, i => isNum(i.cost) ? i.cost : 0),
+      unknown: sold.length - known.length
+    };
+  }
+
+  // Weeks in a row (Monday to Sunday) with at least one business sale, up to the given day.
+  function streaks(upTo) {
+    const weeks = new Set(bizSales().filter(i => i.soldOn <= upTo).map(i => weekOf(i.soldOn)));
+    let w = weekOf(upTo), cur = 0;
+    if (!weeks.has(w) && upTo === S.data.today) w = addDays(w, -7); // this week isn't over yet
+    while (weeks.has(w)) { cur++; w = addDays(w, -7); }
+    let best = 0, run = 0, prev = null;
+    Array.from(weeks).sort().forEach(x => { run = prev && addDays(prev, 7) === x ? run + 1 : 1; best = Math.max(best, run); prev = x; });
+    return { cur, best };
+  }
+
+  const SALE_MARKS = [1, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+  const PROFIT_MARKS = [100, 250, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000, 7500, 10000, 15000, 20000];
+  function milestones(st, prevMonths) {
+    const out = [], start = st.key + '-01', end = st.key + '-31';
+    const all = bizSales();
+    const before = all.filter(i => i.soldOn < start), upto = all.filter(i => i.soldOn <= end);
+    SALE_MARKS.forEach(m => { if (before.length < m && upto.length >= m) out.push({ ic: '🏷️', t: m === 1 ? 'First Sale' : `${m} Sales`, d: m === 1 ? 'The very first one' : 'Lifetime business sales' }); });
+    const pb = sum(before, i => profitOf(i) || 0), pu = sum(upto, i => profitOf(i) || 0);
+    PROFIT_MARKS.forEach(m => { if (pb < m && pu >= m) out.push({ ic: '💷', t: gbp(m, 0) + ' Profit', d: 'Lifetime profit on sales' }); });
+    if (st.n && prevMonths.length && prevMonths.every(p => st.net > p.net)) out.push({ ic: '🏆', t: 'Best Month Ever', d: 'Highest net profit so far' });
+    const goal = S.data.settings.monthlyGoal;
+    if (goal > 0 && st.net >= goal) out.push({ ic: '🎯', t: 'Goal Smashed', d: `${gbp(st.net, 0)} of ${gbp(goal, 0)}` });
+    return out;
+  }
+
+  function deltaTag(now, then, lowerBetter, fmt) {
+    if (!isNum(now) || !isNum(then)) return '<span class="dl">—</span>';
+    const diff = now - then;
+    if (Math.abs(diff) < 0.005) return '<span class="dl">Same</span>';
+    const good = lowerBetter ? diff < 0 : diff > 0;
+    return `<span class="dl ${good ? 'up' : 'down'}">${diff > 0 ? '▲' : '▼'} ${fmt(Math.abs(diff))}</span>`;
+  }
+
+  function goalRing(net, goal) {
+    const p = Math.max(0, Math.min(1, net / goal)), R = 52, C = 2 * Math.PI * R;
+    return `<div class="ring-wrap"><svg class="ring" viewBox="0 0 128 128">
+        <circle cx="64" cy="64" r="${R}" class="ring-bg"/>
+        <circle cx="64" cy="64" r="${R}" class="ring-fg" stroke-dasharray="${(C * p).toFixed(1)} ${C.toFixed(1)}"/>
+      </svg><div class="ring-mid"><b>${Math.round(net / goal * 100)}%</b><span>of ${gbp(goal, 0)}</span></div></div>`;
+  }
+
+  function calendar(st) {
+    const counts = {};
+    st.sold.forEach(i => { const d = Number(i.soldOn.slice(8)); counts[d] = (counts[d] || 0) + 1; });
+    const lead = (new Date(st.key + '-01T00:00:00Z').getUTCDay() + 6) % 7;
+    const today = S.data.today, n = daysIn(st.key);
+    let cells = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(d => `<i class="cal-h">${d}</i>`).join('') + '<i></i>'.repeat(lead);
+    for (let d = 1; d <= n; d++) {
+      const iso = st.key + '-' + String(d).padStart(2, '0'), c = counts[d] || 0;
+      cells += `<i class="cal-d${c ? ' l' + Math.min(c, 3) : ''}${iso === today ? ' now' : ''}${iso > today ? ' fut' : ''}" title="${c} sale${c === 1 ? '' : 's'}">${d}</i>`;
+    }
+    return `<div class="cal">${cells}</div>`;
+  }
+
+  function highlight(label, i, val) {
+    return `<button class="hl" data-sku="${esc(i.sku)}"><div class="th">${photoInner(i, 200)}</div><div><small>${label}</small><b>${esc(i.title || i.sku)}</b><span>${val}</span></div></button>`;
+  }
+
+  function renderReport(v) {
+    const months = reportMonths();
+    let key = S.report.month || defaultReport();
+    if (months.indexOf(key) < 0) key = months[months.length - 1];
+    S.report.month = key;
+    const ix = months.indexOf(key), live = key === monthKey(S.data.today);
+    const st = monthStats(key), pv = monthStats(shiftMonth(key, -1));
+    const prevMonths = months.slice(0, ix).map(monthStats);
+    const end = live ? S.data.today : key + '-' + daysIn(key);
+    const sk = streaks(end), ms = milestones(st, prevMonths), goal = S.data.settings.monthlyGoal;
+    const mName = MONTHS_LONG[Number(key.slice(5)) - 1];
+
+    const k = st.known;
+    const best = k.slice().sort((a, b) => profitOf(b) - profitOf(a))[0];
+    const roiOf = i => i.cost > 0 ? profitOf(i) / i.cost : null;
+    const bestRoi = k.filter(i => roiOf(i) != null && i !== best).sort((a, b) => roiOf(b) - roiOf(a))[0];
+    const fast = st.sold.filter(i => i.boughtOn).sort((a, b) => daysBetween(a.boughtOn, a.soldOn) - daysBetween(b.boughtOn, b.soldOn))[0];
+    const brands = {};
+    st.sold.forEach(i => { const b = (i.brand || '').trim(); if (!b) return; brands[b] = brands[b] || { n: 0, p: 0 }; brands[b].n++; brands[b].p += profitOf(i) || 0; });
+    const topBrand = Object.keys(brands).sort((a, b) => brands[b].p - brands[a].p)[0];
+    const cats = {};
+    st.sold.forEach(i => { const c = i.category || 'Other'; cats[c] = (cats[c] || 0) + 1; });
+    const catRows = Object.keys(cats).sort((a, b) => cats[b] - cats[a]);
+    const shown = catRows.slice(0, 5), restN = sum(catRows.slice(5), c => cats[c]);
+
+    const cmp = [
+      ['Sales', st.n, pv.n, false, x => String(Math.round(x)), x => String(x)],
+      ['Revenue', st.rev, pv.rev, false, x => gbp(x, 0), x => gbp(x)],
+      ['Net Profit', st.net, pv.net, false, x => gbp(x, 0), x => gbp(x)],
+      ['Profit per Sale', st.avgProfit, pv.avgProfit, false, x => gbp(x), x => gbp(x)],
+      ['Days to Sell', st.avgDays, pv.avgDays, true, x => Math.round(x) + 'd', x => isNum(x) ? x + ' days' : '—'],
+      ['Items Bought', st.bought, pv.bought, false, x => String(Math.round(x)), x => String(x)],
+      ['Spent on Stock', st.spent, pv.spent, true, x => gbp(x, 0), x => gbp(x)],
+      ['Expenses', st.exp, pv.exp, true, x => gbp(x, 0), x => gbp(x)]
+    ];
+
+    v.querySelector('#insBody').innerHTML = `
+      <div class="rep-nav">
+        <button class="icon-btn" id="repPrev" ${ix > 0 ? '' : 'disabled'} aria-label="Previous month">${ICON.prev}</button>
+        <div><b>${mName} ${key.slice(0, 4)}</b><small>${live ? 'So Far This Month' : 'Monthly Report'}</small></div>
+        <button class="icon-btn" id="repNext" ${ix < months.length - 1 ? '' : 'disabled'} aria-label="Next month">${ICON.next}</button>
+      </div>
+      <div class="hero rep-hero">
+        <div class="rep-top"><span class="logo-mark sm"><img src="logo.jpg" alt=""></span><span>Your ${mName}${live ? ' So Far' : ''}</span></div>
+        <div class="k">Net Profit</div>
+        <div class="v">${gbp(st.net)}</div>
+        <p class="rep-line">${st.n ? `${st.n} sale${st.n === 1 ? '' : 's'} · ${gbp(st.rev)} revenue` : 'No sales this month yet'}${pv.n || pv.net ? ` · ${st.net >= pv.net ? '▲' : '▼'} ${gbp(Math.abs(st.net - pv.net), 0)} vs ${MONTHS[Number(pv.key.slice(5)) - 1]}` : ''}</p>
+        <div class="hero-row">
+          <div><span>Week Streak</span><b>${sk.cur} 🔥</b></div>
+          <div><span>Best Streak</span><b>${sk.best}</b></div>
+          <div><span>Bought</span><b>${st.bought}</b></div>
+        </div>
+      </div>
+      ${ms.length ? `<div class="panel"><h3>Milestones <small>${ms.length} This Month</small></h3><div class="badges">${ms.map(m => `<div class="badge"><i>${m.ic}</i><b>${esc(m.t)}</b><span>${esc(m.d)}</span></div>`).join('')}</div></div>` : ''}
+      <div class="grid2">
+        <div class="panel">
+          <h3>Sales Calendar <small>${Object.keys(st.sold.reduce((a, i) => (a[i.soldOn] = 1, a), {})).length} Selling Days</small></h3>
+          ${calendar(st)}
+          <p class="fine">Keep a sale going every week to grow your streak. The current week doesn't break it until it's over.</p>
+        </div>
+        <div class="panel">
+          <h3>Monthly Goal <small>Net Profit</small></h3>
+          ${goal > 0 ? goalRing(st.net, goal) + `<p class="fine" style="text-align:center">${st.net >= goal ? 'Goal reached. Nice work!' : live ? `${gbp(goal - st.net)} to go with ${daysIn(key) - Number(S.data.today.slice(8))} days left.` : `Finished ${gbp(goal - st.net)} short.`}</p>` : `<div class="empty" style="padding:24px 12px">No goal set yet.</div><button class="btn ghost" data-goto="settings">Set a Monthly Goal</button>`}
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Compared to ${MONTHS_LONG[Number(pv.key.slice(5)) - 1]}</h3>
+        <div class="cmp">${cmp.map(([l, a, b, lower, df, f]) => `<div class="cmp-row"><span>${l}</span><b>${f(a)}</b>${deltaTag(a, b, lower, df)}</div>`).join('')}</div>
+        ${st.unknown ? `<p class="fine">${st.unknown} sale${st.unknown === 1 ? ' has' : 's have'} an unknown cost, so ${st.unknown === 1 ? "it isn't" : "they aren't"} counted in profit.</p>` : ''}
+      </div>
+      ${st.n ? `<div class="panel">
+        <h3>Highlights</h3>
+        <div class="hls">
+          ${best ? highlight('Best Flip', best, gbp(profitOf(best)) + ' profit') : ''}
+          ${bestRoi ? highlight('Highest ROI', bestRoi, pct(roiOf(bestRoi)) + ' on ' + gbp(bestRoi.cost)) : ''}
+          ${fast ? highlight('Fastest Sale', fast, daysBetween(fast.boughtOn, fast.soldOn) + ' days from buying') : ''}
+          ${topBrand ? `<button class="hl" data-brand="${esc(topBrand)}"><div class="th hl-ic">${ICON.tag}</div><div><small>Top Brand</small><b>${esc(topBrand)}</b><span>${brands[topBrand].n} sold · ${gbp(brands[topBrand].p)} profit</span></div></button>` : ''}
+        </div>
+      </div>
+      <div class="panel">
+        <h3>What Sold <small>By Category</small></h3>
+        <div class="split">${shown.map((c, n) => `<i style="flex:${cats[c]};opacity:${1 - n * 0.16}"></i>`).join('')}${restN ? `<i style="flex:${restN};opacity:.2"></i>` : ''}</div>
+        <div class="rank">${shown.map(c => `<div class="row"><b>${esc(c)}</b><span>${cats[c]} · ${pct(cats[c] / st.n)}</span></div>`).join('')}${restN ? `<div class="row"><b>Everything Else</b><span>${restN} · ${pct(restN / st.n)}</span></div>` : ''}</div>
+      </div>` : ''}`;
+
+    $('#repPrev', v).onclick = () => { S.report.month = months[ix - 1]; renderInsights(); };
+    $('#repNext', v).onclick = () => { S.report.month = months[ix + 1]; renderInsights(); };
+    $$('.hl[data-sku]', v).forEach(b => b.onclick = () => openItem(b.dataset.sku));
+    $$('.hl[data-brand]', v).forEach(b => b.onclick = () => { S.sold = { q: b.dataset.brand, use: 'Business', month: key }; go('sold'); });
+    $$('[data-goto]', v).forEach(b => b.onclick = () => go(b.dataset.goto));
+
+    // Confetti once per month for each new set of milestones.
+    const tag = 'vt-cele-' + key, sig = ms.map(m => m.t).join('|');
+    let seen = ''; try { seen = localStorage.getItem(tag) || ''; } catch (e) { /* private mode */ }
+    if (sig && seen !== sig) { try { localStorage.setItem(tag, sig); } catch (e) { /* private mode */ } setTimeout(confetti, 250); }
+  }
+
+  function confetti() {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const c = document.createElement('canvas'), x = c.getContext('2d');
+    c.className = 'confetti'; document.body.appendChild(c);
+    const W = c.width = innerWidth, H = c.height = innerHeight;
+    const cols = ['#6AE8EE', '#1FB5C1', '#007782', '#F3F1EC', '#5FD49A', '#F2B45A'];
+    const ps = Array.from({ length: 140 }, () => ({ x: W / 2 + (Math.random() - .5) * W * .3, y: H * .35, vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4, r: Math.random() * 6.28, vr: (Math.random() - .5) * .3, w: 6 + Math.random() * 6, c: cols[Math.floor(Math.random() * cols.length)] }));
+    const t0 = performance.now();
+    (function frame(t) {
+      x.clearRect(0, 0, W, H);
+      ps.forEach(p => { p.vy += .35; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr; x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2); x.restore(); });
+      if (t - t0 < 3200) requestAnimationFrame(frame); else c.remove();
+    })(t0);
+  }
+
+  function leaderRows() {
+    const f = S.lead, t = S.data.today;
+    const from = f.period === 'tax' ? taxYearStart(t) : f.period === '90' ? addDays(t, -89) : f.period === 'year' ? t.slice(0, 4) + '-01-01' : '0000';
+    const keyOf = i => f.by === 'brand' ? ((i.brand || '').trim() || 'No Brand') : (i.category || 'Other');
+    const g = {};
+    const grp = i => { const k = keyOf(i), id = k.toLowerCase(); return g[id] = g[id] || { k, n: 0, p: 0, c: 0, kn: 0, dSum: 0, dN: 0, stock: 0, allSold: 0 }; };
+    S.data.items.filter(isBiz).forEach(i => {
+      const r = grp(i);
+      if (isSold(i)) r.allSold++; else if (UNSOLD.indexOf(i.status) >= 0) r.stock++;
+      if (!isSold(i) || !i.soldOn || i.soldOn < from) return;
+      r.n++;
+      const p = profitOf(i);
+      if (p != null) { r.p += p; r.c += i.cost; r.kn++; }
+      if (i.boughtOn) { r.dSum += daysBetween(i.boughtOn, i.soldOn); r.dN++; }
+    });
+    const rows = Object.keys(g).map(id => {
+      const r = g[id];
+      return Object.assign(r, { roi: r.c > 0 ? r.p / r.c : null, days: r.dN ? Math.round(r.dSum / r.dN) : null, avg: r.kn ? r.p / r.kn : null, thru: r.allSold + r.stock ? r.allSold / (r.allSold + r.stock) : null });
+    }).filter(r => r.n > 0);
+    const ok = r => f.sort === 'profit' ? true : f.sort === 'roi' ? r.kn >= 2 && r.roi != null : r.dN >= 2;
+    const val = r => f.sort === 'profit' ? r.p : f.sort === 'roi' ? r.roi : -r.days;
+    const ranked = rows.filter(ok).sort((a, b) => val(b) - val(a) || b.n - a.n);
+    const rest = rows.filter(r => !ok(r)).sort((a, b) => b.n - a.n || b.p - a.p);
+    return { ranked, rest };
+  }
+
+  function renderLeaderboard(v) {
+    const f = S.lead, { ranked, rest } = leaderRows();
+    const metric = r => f.sort === 'profit' ? gbp(r.p) : f.sort === 'roi' ? pct(r.roi) : r.days + ' days';
+    const top = ranked.length ? (f.sort === 'speed' ? Math.max(...ranked.map(r => r.days), 1) : Math.max(...ranked.map(r => f.sort === 'roi' ? r.roi : r.p), 0.01)) : 1;
+    const barW = r => f.sort === 'speed' ? Math.max(4, (1 - r.days / (top + 1)) * 100) : Math.max(3, (f.sort === 'roi' ? r.roi : r.p) / top * 100);
+    const row = (r, n) => `<button class="lb-row${n == null ? ' dim' : ''}" data-k="${esc(r.k)}">
+        <span class="lb-pos${n != null && n < 3 ? ' m' + n : ''}">${n == null ? '–' : n + 1}</span>
+        <span class="lb-name"><b>${esc(r.k)}</b><small>${r.n} sold${r.stock ? ` · ${r.stock} in stock` : ''}${r.thru != null ? ` · ${pct(r.thru)} sell-through` : ''}</small></span>
+        <span class="lb-val"><b>${n == null ? '—' : metric(r)}</b><small>${[f.sort !== 'profit' ? gbp(r.p, 0) : r.roi != null ? pct(r.roi) + ' ROI' : '', f.sort !== 'speed' && r.days != null ? r.days + 'd' : f.sort === 'speed' && r.avg != null ? gbp(r.avg) + ' avg' : ''].filter(Boolean).join(' · ')}</small></span>
+        ${n == null ? '' : `<span class="lb-bar"><i style="width:${barW(r).toFixed(1)}%"></i></span>`}
+      </button>`;
+    v.querySelector('#insBody').innerHTML = `
+      <div class="lb-ctrls">
+        <div class="seg" id="lbBy">${[['brand', 'Brands'], ['category', 'Categories']].map(([k, l]) => `<button data-v="${k}" class="${f.by === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+        <div class="seg" id="lbSort">${[['profit', 'Profit'], ['roi', 'ROI'], ['speed', 'Speed']].map(([k, l]) => `<button data-v="${k}" class="${f.sort === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+        <div class="seg" id="lbPeriod">${[['all', 'All Time'], ['tax', 'Tax Year'], ['year', String(S.data.today.slice(0, 4))], ['90', '90 Days']].map(([k, l]) => `<button data-v="${k}" class="${f.period === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      </div>
+      <div class="panel">
+        <h3>${f.by === 'brand' ? 'Brand' : 'Category'} Leaderboard <small>${{ profit: 'Total Profit', roi: 'Return on Cost', speed: 'Fastest to Sell' }[f.sort]}</small></h3>
+        ${ranked.length ? `<div class="lb">${ranked.map(row).join('')}</div>` : '<div class="empty">No sales in this period.</div>'}
+        ${rest.length ? `<h3 style="margin-top:6px">Not Ranked Yet <small>Fewer Than 2 Sales${f.sort === 'roi' ? ' with a Known Cost' : ''}</small></h3><div class="lb">${rest.map(r => row(r, null)).join('')}</div>` : ''}
+        <p class="fine">${f.sort === 'speed' ? 'Average days from buying to selling.' : f.sort === 'roi' ? 'Profit divided by what you paid, for sales with a known cost.' : 'Profit after cost, postage and fees. Sales with an unknown cost add nothing.'} Sell-through is all-time sold ÷ (sold + still in stock).${f.by === 'brand' ? ' Tap a brand to see its sales.' : ''}</p>
+      </div>`;
+    [['#lbBy', 'by'], ['#lbSort', 'sort'], ['#lbPeriod', 'period']].forEach(([sel, k]) => $$(sel + ' button', v).forEach(b => b.onclick = () => { S.lead[k] = b.dataset.v; renderInsights(); }));
+    if (f.by === 'brand') $$('.lb-row', v).forEach(b => b.onclick = () => { S.sold = { q: b.dataset.k === 'No Brand' ? '' : b.dataset.k, use: 'Business', month: 'All' }; go('sold'); });
+  }
+
+  function renderInsights() {
+    const v = $('#view-insights');
+    v.innerHTML = `${header('', 'Insights')}
+      <div class="seg ins-tabs" id="insTabs">${[['report', 'Monthly Report'], ['leaders', 'Leaderboard']].map(([k, l]) => `<button data-t="${k}" class="${S.insTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <div id="insBody"></div>`;
+    $$('#insTabs button', v).forEach(b => b.onclick = () => { S.insTab = b.dataset.t; renderInsights(); });
+    if (S.insTab === 'leaders') renderLeaderboard(v); else renderReport(v);
+    wireRefresh(v);
+  }
+
+  // Dashboard teaser for the report and leaderboard (the only way in on phones).
+  function insightCards() {
+    const key = defaultReport(), live = key === monthKey(S.data.today), st = monthStats(key);
+    const mName = MONTHS_LONG[Number(key.slice(5)) - 1];
+    const { ranked } = (function () { const keep = S.lead; S.lead = { by: 'brand', sort: 'profit', period: 'all' }; const r = leaderRows(); S.lead = keep; return r; })();
+    const lead = ranked[0];
+    return `<div class="ins-cards">
+      <button class="ins-card rep" data-ins="report"><span class="logo-mark sm"><img src="logo.jpg" alt=""></span><span><small>${live ? 'Monthly Report' : 'New Report Ready'}</small><b>Your ${mName}${live ? ' So Far' : ''}</b><em>${st.n} sale${st.n === 1 ? '' : 's'} · ${gbp(st.net)} net</em></span>${ICON.next}</button>
+      <button class="ins-card" data-ins="leaders"><i class="ins-ic">${ICON.tag}</i><span><small>Brand Leaderboard</small><b>${lead ? esc(lead.k) : 'No Sales Yet'}</b><em>${lead ? 'Top earner · ' + gbp(lead.p) : 'Sell something to start'}</em></span>${ICON.next}</button>
+    </div>`;
   }
 
   // ---------- stock ----------
@@ -1038,6 +1321,12 @@
           <button class="btn" id="saveAge">Save</button>
         </div>
         <div class="panel">
+          <h3>Monthly Report <small>Emailed on the 1st</small></h3>
+          ${field('Monthly Profit Goal', `<div class="money"><input id="sGoal" type="number" inputmode="decimal" min="0" step="1" value="${st.monthlyGoal > 0 ? st.monthlyGoal : ''}" placeholder="No goal"></div>`)}
+          <p class="fine">Net profit you're aiming for each month. It fills the ring on your report. Leave it empty for no goal.</p>
+          <button class="btn" id="saveGoal">Save Goal</button>
+        </div>
+        <div class="panel">
           <h3>Vinted Emails <small>${d.automationOn ? 'Checked Every Hour' : 'Not Switched On'}</small></h3>
           <p class="fine">${d.automationOn ? 'Sales, posting, completed orders, purchases and bump invoices are read from your Gmail automatically. Anything unclear lands in Needs Checking on the dashboard.' + ((d.auto || {}).lastScan ? ' Last checked ' + esc(new Date(d.auto.lastScan).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })) + '.' : '') : 'Run setupAutomation once in the script editor to switch this on.'}</p>
           <p class="fine">Weekly backup every Sunday (last 8 kept in Drive › VintVault Backups) and a summary email every Monday morning.</p>
@@ -1079,6 +1368,11 @@
       busy('#saveAge', true);
       call('saveSettings', s).then(ns => { S.data.settings = ns; renderSettings(); toast('Settings Saved'); })
         .catch(e => { busy('#saveAge', false); toast(errMsg(e), true); });
+    };
+    $('#saveGoal', v).onclick = () => {
+      busy('#saveGoal', true);
+      call('saveSettings', { monthlyGoal: $('#sGoal', v).value.trim() }).then(ns => { S.data.settings = ns; renderSettings(); toast('Goal Saved'); })
+        .catch(e => { busy('#saveGoal', false); toast(errMsg(e), true); });
     };
     $('#scanNow', v).onclick = () => {
       busy('#scanNow', true);
@@ -1175,7 +1469,7 @@
   function render() {
     if (!S.data) return;
     seedBanner();
-    ({ dashboard: renderDashboard, stock: renderStock, sold: renderSold, expenses: renderExpenses, list: renderList, settings: renderSettings })[S.view]();
+    ({ dashboard: renderDashboard, stock: renderStock, sold: renderSold, expenses: renderExpenses, list: renderList, settings: renderSettings, insights: renderInsights })[S.view]();
     wireRefresh(document);
     $$('[data-goto]').forEach(b => b.onclick = () => go(b.dataset.goto));
   }
@@ -1217,5 +1511,8 @@
   }
 
   $('#forgetKey').onclick = () => { setKey(''); S.data = null; askKey(''); };
+  // Links from the monthly email: …/#report=2026-10
+  const deep = location.hash.match(/^#report=(\d{4}-\d{2})$/);
+  if (deep) { S.view = 'insights'; S.insTab = 'report'; S.report.month = deep[1]; history.replaceState(null, '', location.pathname + location.search); }
   if (window.VT_MOCK || getKey()) start(); else askKey('');
 })();
