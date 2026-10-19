@@ -180,6 +180,7 @@
     v.innerHTML = `
       ${header('', 'Dashboard', '', true)}
       ${profileCard()}
+      ${actionPanels()}
       <div class="hero">
         <div class="seg" id="periodSeg">
           ${[['all', 'All Time'], ['tax', 'Tax Year'], ['month', 'This Month'], ['30', '30 Days']].map(([k, l]) => `<button data-p="${k}" class="${S.period === k ? 'on' : ''}">${l}</button>`).join('')}
@@ -211,7 +212,7 @@
             <button data-go="stock" data-status="In stock">Bought but Not Listed Yet <span class="n">${items.filter(i => i.status === 'In stock').length}</span></button>
             <button data-go="stock" data-status="No photo">Items Without a Photo <span class="n">${items.filter(i => !isSold(i) && !hasPhoto(i)).length}</span></button>
             <button data-go="stock" data-aged="drop">Over ${st.dropDays} Days Old: Consider a Price Drop <span class="n">${stock.filter(i => (ageOf(i) || 0) >= st.dropDays).length}</span></button>
-            <button data-sheet="listings">Vinted Listings Not Matched to a SKU <span class="n">${d.listingsToMatch}</span></button>
+            <button data-go="stock" data-aged="relist">Listed ${st.relistDays}+ Days: Relist or Bump <span class="n">${items.filter(i => i.status === 'Listed' && (ageOf(i) || 0) >= st.relistDays).length}</span></button> <span class="n">${d.listingsToMatch}</span></button>
           </div>
         </div>
       </div>
@@ -221,6 +222,7 @@
         <div class="panel"><h3>HMRC Check <small>Not Tax Advice</small></h3>${hmrcPanel()}</div>
       </div>`;
     wireChart();
+    wireActionPanels(v);
     $$('#periodSeg button', v).forEach(b => b.onclick = () => { S.period = b.dataset.p; renderDashboard(); });
     $$('[data-go]', v).forEach(b => b.onclick = () => {
       S.stock.status = b.dataset.status || 'All';
@@ -232,6 +234,60 @@
     $$('[data-sheet]', v).forEach(b => b.onclick = () => window.open(d.sheetUrl, '_blank'));
     const pe = $('#editProfile', v); if (pe) pe.onclick = openProfile;
   }
+  // ---------- To Post + Needs Checking (from the Gmail reader) ----------
+  function actionPanels() {
+    const a = S.data.auto || { inbox: [], toPost: [] };
+    let html = '';
+    if (a.toPost.length) {
+      const rows = a.toPost.slice().sort((x, y) => (x.postBy || '9').localeCompare(y.postBy || '9'));
+      html += `<div class="panel post-panel"><h3>To Post <small>${rows.length} Waiting</small></h3><div class="act-list">${rows.map(t => {
+        const left = t.postBy ? daysBetween(S.data.today, t.postBy) : null;
+        const cls = left == null ? '' : left <= 1 ? 'bad' : left <= 3 ? 'warn' : 'good';
+        const it = S.data.items.filter(i => i.sku === t.sku)[0] || {};
+        return `<div class="act">${thumbFor(it)}<div class="mid"><b>${esc(t.title)}</b><span>${esc(t.sku)}${t.postBy ? ` · Post by ${ukDate(t.postBy)}` : ' · label not made yet'}</span></div>
+          ${left != null ? `<span class="due ${cls}">${left <= 0 ? 'Today' : left + 'd'}</span>` : ''}<button class="btn sm ghost" data-posted="${t.row}" data-sku="${esc(t.sku)}">Posted</button></div>`;
+      }).join('')}</div></div>`;
+    }
+    if (a.inbox.length) {
+      html += `<div class="panel check-panel"><h3>Needs Checking <small>From Your Vinted Emails</small></h3><div class="act-list">${a.inbox.map(e => {
+        const d = e.details || {};
+        if (e.type === 'Sale') {
+          const cands = (d.candidates || []).filter(c => c.score > 0.3);
+          const unsold = S.data.items.filter(i => !isSold(i)).sort((x, y) => x.sku.localeCompare(y.sku));
+          return `<div class="act col"><div class="act-top">${d.img ? `<div class="th"><img src="${esc(d.img)}" alt=""></div>` : ''}<div class="mid"><b>Sold: ${esc(e.title)}</b><span>${gbp(e.price)} · ${ukDate(d.date || e.received)}${d.bundle ? ' · bundle: pick the main item, then mark the others sold by hand' : ''}</span></div></div>
+            <div class="act-do"><select class="select" data-pick="${e.row}"><option value="">Which item sold?</option>${cands.map(c => `<option value="${esc(c.sku)}">${esc(c.sku)} · ${esc(c.title)} (best match)</option>`).join('')}${unsold.map(i => `<option value="${esc(i.sku)}">${esc(i.sku)} · ${esc(i.title)}</option>`).join('')}</select>
+            <button class="btn sm" data-sale="${e.row}" data-id="${esc(e.id)}">Confirm</button><button class="btn sm ghost" data-dismiss="${e.row}" data-id="${esc(e.id)}">Ignore</button></div></div>`;
+        }
+        return `<div class="act col"><div class="act-top"><div class="ex-ic">${ICON.bag}</div><div class="mid"><b>Bought: ${esc(e.title)}</b><span>${gbp(e.price)} paid · ${ukDate(d.date || e.received)}${d.seller ? ' · from ' + esc(d.seller) : ''}${d.bundle ? ' · bundle: add each item, then tap Done' : ''}</span></div></div>
+          <div class="act-do"><button class="btn sm" data-addbuy="${e.row}" data-id="${esc(e.id)}">Add as Item</button>${d.bundle ? `<button class="btn sm ghost" data-done="${e.row}" data-id="${esc(e.id)}">Done</button>` : ''}<button class="btn sm ghost" data-dismiss="${e.row}" data-id="${esc(e.id)}">Ignore</button></div></div>`;
+      }).join('')}</div></div>`;
+    }
+    return html;
+  }
+  function thumbFor(i) { return `<div class="th">${photoInner(i, 200)}</div>`; }
+
+  function wireActionPanels(v) {
+    const a = S.data.auto || { inbox: [] };
+    const after = res => { S.data.auto = res.auto || res; render(); };
+    $$('[data-posted]', v).forEach(b => b.onclick = () => { b.disabled = true; call('markPosted', Number(b.dataset.posted), b.dataset.sku).then(r => { S.data.auto = r; render(); toast('Marked as Posted'); }).catch(e => { b.disabled = false; toast(errMsg(e), true); }); });
+    $$('[data-dismiss]', v).forEach(b => b.onclick = () => { b.disabled = true; call('resolveInbox', Number(b.dataset.dismiss), b.dataset.id, 'dismiss', '').then(r => { S.data.auto = r; render(); }).catch(e => { b.disabled = false; toast(errMsg(e), true); }); });
+    $$('[data-done]', v).forEach(b => b.onclick = () => { b.disabled = true; call('resolveInbox', Number(b.dataset.done), b.dataset.id, 'done', '').then(r => { S.data.auto = r; render(); }).catch(e => { b.disabled = false; toast(errMsg(e), true); }); });
+    $$('[data-sale]', v).forEach(b => b.onclick = () => {
+      const sku = $(`[data-pick="${b.dataset.sale}"]`, v).value;
+      if (!sku) { toast('Pick which item sold first.', true); return; }
+      b.disabled = true;
+      call('resolveInbox', Number(b.dataset.sale), b.dataset.id, 'sale', sku).then(() => refresh(true)).then(() => toast(sku + ' Marked as Sold')).catch(e => { b.disabled = false; toast(errMsg(e), true); });
+    });
+    $$('[data-addbuy]', v).forEach(b => b.onclick = () => {
+      const e = a.inbox.filter(x => String(x.row) === b.dataset.addbuy)[0];
+      const d = e.details || {};
+      openNew({ title: d.bundle ? '' : e.title, cost: d.bundle ? '' : e.price, boughtFrom: 'Vinted', boughtOn: d.date || e.received, notes: 'Vinted order "' + e.title + '"' + (d.seller ? ' from ' + d.seller : '') }, saved => {
+        if (!d.bundle) call('resolveInbox', e.row, e.id, 'done', '').then(r => { S.data.auto = r; render(); }).catch(() => {});
+      });
+    });
+    void after;
+  }
+
   function kpi(ic, k, v, dsc) { return `<div class="kpi"><div class="ic">${ic}</div><div><div class="k">${k}</div><div class="v">${v}</div></div><div class="d">${dsc}</div></div>`; }
 
   function profileCard() {
@@ -382,6 +438,7 @@
     let list = items.filter(i => f.status === 'All' || (f.status === 'No photo' ? !hasPhoto(i) : i.status === f.status));
     if (f.cat !== 'All') list = list.filter(i => i.category === f.cat);
     if (f.aged === 'drop') list = list.filter(i => (ageOf(i) || 0) >= S.data.settings.dropDays);
+    else if (f.aged === 'relist') list = list.filter(i => i.status === 'Listed' && (ageOf(i) || 0) >= S.data.settings.relistDays);
     else if (f.aged) list = list.filter(i => ageBand(ageOf(i)) === f.aged);
     if (f.q) { const q = f.q.toLowerCase(); list = list.filter(i => [i.sku, i.title, i.brand, i.size, i.location, i.notes].join(' ').toLowerCase().indexOf(q) >= 0); }
     const sorters = {
@@ -393,7 +450,7 @@
     };
     list.sort(sorters[f.sort]);
     S.lastList = list.map(i => i.sku);
-    const agedLabel = { good: 'Under ' + S.data.settings.amberDays + ' Days', warn: 'Getting Old', bad: S.data.settings.redDays + '+ Days', drop: 'Over ' + S.data.settings.dropDays + ' Days' }[f.aged];
+    const agedLabel = { good: 'Under ' + S.data.settings.amberDays + ' Days', warn: 'Getting Old', bad: S.data.settings.redDays + '+ Days', drop: 'Over ' + S.data.settings.dropDays + ' Days', relist: 'Relist or Bump' }[f.aged];
 
     const v = $('#view-stock');
     v.innerHTML = `
@@ -583,7 +640,9 @@
         <div class="row-btns">
           ${sold ? '' : `<button type="button" class="btn" id="markSold">${ICON.tick}Mark as Sold</button>`}
           ${vurl ? `<a class="btn ghost" href="${esc(vurl)}" target="_blank" rel="noopener">${ICON.ext}View on Vinted</a>` : ''}
+          ${sold || !(S.data.ai || {}).ready ? '' : `<button type="button" class="btn ghost" id="suggestBtn">${ICON.spark}Suggest a Price</button>`}
         </div>
+        <div id="suggestOut"></div>
         <div id="soldSlot">${sold ? soldBox(i) : ''}</div>
         ${itemForm(i)}
         ${datalists()}
@@ -596,6 +655,16 @@
     if (sold) wireSold(form);
     $('#photoIn').onchange = e => uploadPhoto(i.sku, e.target.files[0]);
     $('#saveItem').onclick = () => save(form, i);
+    const sb = $('#suggestBtn');
+    if (sb) sb.onclick = () => {
+      sb.disabled = true; sb.innerHTML = '<span class="spin sm"></span>Thinking…';
+      call('suggestPrice', i.sku).then(r => {
+        sb.remove();
+        $('#suggestOut').innerHTML = `<div class="box suggest"><h4>Suggested Price</h4><div class="sug-row"><b>${gbp(r.price, 0)}</b><span>${esc(r.reason || '')}</span></div>
+          <button type="button" class="btn" id="useSug">Use ${gbp(r.price, 0)}</button><p class="fine">This fills in Listed At. Change it on Vinted too, then tap Save Changes.</p></div>`;
+        $('#useSug').onclick = () => { const el = $('[name=listedAt]', form); el.value = r.price; el.dispatchEvent(new Event('input', { bubbles: true })); toast('Listed At set to ' + gbp(r.price, 0)); };
+      }).catch(e => { sb.disabled = false; sb.innerHTML = ICON.spark + 'Suggest a Price'; toast(errMsg(e), true); });
+    };
     $('#prevItem').onclick = () => prevSku && openItem(prevSku);
     $('#nextItem').onclick = () => nextSku && openItem(nextSku);
   }
@@ -660,9 +729,9 @@
     }).catch(e => { busy('#saveItem', false); toast(errMsg(e), true); });
   }
 
-  function openNew() {
+  function openNew(pre, after) {
     const st = S.data.settings;
-    const blank = { status: 'In stock', boughtOn: S.data.today, use: 'Business' };
+    const blank = Object.assign({ status: 'In stock', boughtOn: S.data.today, use: 'Business' }, pre || {});
     openSheet(`
       <div class="sh-top"><h2>Add an Item</h2>${closeBtn}</div>
       <form id="newForm" class="sh-body" autocomplete="off">
@@ -692,6 +761,7 @@
         else st.nextSku = ('000' + (Number(st.nextSku) + 1)).slice(-4);
         closeSheet(); go('stock');
         toast('Added as ' + saved.sku);
+        if (after) after(saved);
         if (file) uploadPhoto(saved.sku, file);
       }).catch(e => { busy('#saveNew', false); toast(errMsg(e), true); });
     };
@@ -962,9 +1032,22 @@
           <div class="fields">
             ${field('Amber From', `<input id="sAmber" type="number" inputmode="numeric" min="1" value="${st.amberDays}">`)}
             ${field('Red From', `<input id="sRed" type="number" inputmode="numeric" min="1" value="${st.redDays}">`)}
-            ${field('Price-Drop Prompt From', `<input id="sDrop" type="number" inputmode="numeric" min="1" value="${st.dropDays}">`, true)}
+            ${field('Price-Drop Prompt From', `<input id="sDrop" type="number" inputmode="numeric" min="1" value="${st.dropDays}">`)}
+            ${field('Relist Reminder From', `<input id="sRelist" type="number" inputmode="numeric" min="1" value="${st.relistDays}">`)}
           </div>
           <button class="btn" id="saveAge">Save</button>
+        </div>
+        <div class="panel">
+          <h3>Vinted Emails <small>${d.automationOn ? 'Checked Every Hour' : 'Not Switched On'}</small></h3>
+          <p class="fine">${d.automationOn ? 'Sales, posting, completed orders, purchases and bump invoices are read from your Gmail automatically. Anything unclear lands in Needs Checking on the dashboard.' + ((d.auto || {}).lastScan ? ' Last checked ' + esc(new Date(d.auto.lastScan).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })) + '.' : '') : 'Run setupAutomation once in the script editor to switch this on.'}</p>
+          <p class="fine">Weekly backup every Sunday (last 8 kept in Drive › VintVault Backups) and a summary email every Monday morning.</p>
+          <button class="btn ghost" id="scanNow" ${d.automationOn ? '' : 'disabled'}>${ICON.refresh}Check Emails Now</button>
+        </div>
+        <div class="panel">
+          <h3>Tax-Year Export</h3>
+          <div class="f"><label>Tax Year</label><select class="select" id="taxYear">${taxYears().map(y => `<option value="${y}">06/04/${y} – 05/04/${y + 1}</option>`).join('')}</select></div>
+          <p class="fine">A spreadsheet file (CSV) of business sales and expenses for that tax year, with totals. Personal sales are left out.</p>
+          <button class="btn ghost" id="taxCsv">${ICON.receipt}Download CSV</button>
         </div>
         <div class="panel">
           <h3>Listing Generator</h3>
@@ -991,16 +1074,57 @@
       <p class="fine" style="text-align:center;margin-top:8px">VintVault · data from your private Google Sheet</p>`;
     $('#setProfile', v).onclick = openProfile;
     $('#saveAge', v).onclick = () => {
-      const s = { amberDays: $('#sAmber', v).value, redDays: $('#sRed', v).value, dropDays: $('#sDrop', v).value };
+      const s = { amberDays: $('#sAmber', v).value, redDays: $('#sRed', v).value, dropDays: $('#sDrop', v).value, relistDays: $('#sRelist', v).value };
       if (Number(s.amberDays) >= Number(s.redDays)) { toast('Red needs to be more days than amber.', true); return; }
       busy('#saveAge', true);
       call('saveSettings', s).then(ns => { S.data.settings = ns; renderSettings(); toast('Settings Saved'); })
         .catch(e => { busy('#saveAge', false); toast(errMsg(e), true); });
     };
+    $('#scanNow', v).onclick = () => {
+      busy('#scanNow', true);
+      call('checkEmailsNow').then(r => {
+        S.data = r.data; S.loadedAt = Date.now(); renderSettings();
+        const x = r.result || {};
+        toast(x.busy ? 'Already checking, try again in a minute' : `Read ${x.read || 0} emails · ${x.sales || 0} sales · ${x.toCheck || 0} to check`);
+      }).catch(e => { busy('#scanNow', false); toast(errMsg(e), true); });
+    };
+    $('#taxCsv', v).onclick = () => downloadTaxCsv(Number($('#taxYear', v).value));
     $$('#cornerSeg button', v).forEach(b => b.onclick = () => { setPref('corners', b.dataset.c); renderSettings(); });
     $('[data-refresh-btn]', v).onclick = () => refresh(false);
     $('#lockDev', v).onclick = () => { setKey(''); S.data = null; askKey(''); };
     wireRefresh(v);
+  }
+
+  // ---------- tax-year export ----------
+  function taxYears() {
+    const dates = S.data.items.filter(isSold).map(i => i.soldOn).concat(S.data.expenses.map(e => e.date)).filter(Boolean);
+    const startOf = iso => { const y = Number(iso.slice(0, 4)); return iso >= y + '-04-06' ? y : y - 1; };
+    const ys = Array.from(new Set(dates.map(startOf).concat([startOf(S.data.today)]))).sort((a, b) => b - a);
+    return ys;
+  }
+  function downloadTaxCsv(y) {
+    const from = y + '-04-06', to = (y + 1) + '-04-05';
+    const inYear = d => d && d >= from && d <= to;
+    const q = v => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const n2 = v => isNum(v) ? v.toFixed(2) : '';
+    const sales = S.data.items.filter(i => isBiz(i) && isSold(i) && inYear(i.soldOn)).sort((a, b) => a.soldOn.localeCompare(b.soldOn));
+    const exps = S.data.expenses.filter(e => inYear(e.date)).sort((a, b) => a.date.localeCompare(b.date));
+    const rows = [['VintVault tax-year export', `06/04/${y} to 05/04/${y + 1}`], [], ['SALES'], ['Date sold', 'SKU', 'Item', 'Sold for (£)', 'Cost (£)', 'Postage (£)', 'Fees (£)', 'Profit (£)', 'Bought on', 'Bought from']];
+    sales.forEach(i => rows.push([ukDate(i.soldOn), i.sku, i.title, n2(i.soldFor), isNum(i.cost) ? n2(i.cost) : 'Unknown', n2(i.postage), n2(i.fees), n2(profitOf(i)), i.boughtOn ? ukDate(i.boughtOn) : '', i.boughtFrom || '']));
+    const income = sum(sales, i => i.soldFor), costs = sum(sales, i => isNum(i.cost) ? i.cost : 0), gross = sum(sales, i => profitOf(i) || 0);
+    rows.push([], ['EXPENSES'], ['Date', 'Category', 'Description', 'Amount (£)', 'Notes']);
+    exps.forEach(e => rows.push([ukDate(e.date), e.category, e.description, n2(e.amount), e.notes || '']));
+    const exTotal = sum(exps, e => isNum(e.amount) ? e.amount : 0);
+    rows.push([], ['TOTALS'], ['Sales income (£)', income.toFixed(2)], ['Cost of items sold (£)', costs.toFixed(2)], ['Expenses (£)', exTotal.toFixed(2)], ['Net profit (£)', (gross - exTotal).toFixed(2)],
+      ['Sales with unknown cost', sales.filter(i => !isNum(i.cost)).length], [], ['Not tax advice. Check with HMRC or an accountant.']);
+    const csv = '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `VintVault tax year ${y}-${String(y + 1).slice(2)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('Export Ready');
   }
 
   // ---------- add menu ----------
