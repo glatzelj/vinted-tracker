@@ -216,7 +216,7 @@
             <button data-go="stock" data-status="In stock">Bought but Not Listed Yet <span class="n">${items.filter(i => i.status === 'In stock').length}</span></button>
             <button data-go="stock" data-status="No photo">Items Without a Photo <span class="n">${items.filter(i => !isSold(i) && !hasPhoto(i)).length}</span></button>
             <button data-go="stock" data-aged="drop">Over ${st.dropDays} Days Old: Consider a Price Drop <span class="n">${stock.filter(i => (ageOf(i) || 0) >= st.dropDays).length}</span></button>
-            <button data-go="stock" data-aged="relist">Listed ${st.relistDays}+ Days: Relist or Bump <span class="n">${items.filter(i => i.status === 'Listed' && (ageOf(i) || 0) >= st.relistDays).length}</span></button> <span class="n">${d.listingsToMatch}</span></button>
+            <button data-go="stock" data-aged="relist">Listed ${st.relistDays}+ Days: Relist or Bump <span class="n">${items.filter(i => i.status === 'Listed' && (ageOf(i) || 0) >= st.relistDays).length}</span></button>
           </div>
         </div>
       </div>
