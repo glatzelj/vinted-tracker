@@ -15,16 +15,16 @@
   <link rel="icon" type="image/png" href="icon-512.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
   <div class="shell">
     <aside class="side">
-      <div class="brand"><img src="logo.png" alt=""><span>Vint<b>Vault</b></span></div>
+      <div class="brand"><span class="logo-mark sm"><img src="logo.jpg" alt=""></span><span>Vint<b>Vault</b></span></div>
       <nav id="nav">
         <button class="nav on" data-view="dashboard"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg><span>Home</span></button>
         <button class="nav" data-view="stock"><svg viewBox="0 0 24 24"><path d="M20 7h-4V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a1 1 0 0 0-1-1zM10 5h4v2h-4z"/></svg><span>Stock</span></button>
-        <button class="nav" data-view="list"><svg viewBox="0 0 24 24"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 1.8 1.8.7-1.8.7L5 20l-.7-1.8-1.8-.7 1.8-.7z"/></svg><span>List</span></button>
+        <button class="nav desk" data-view="list"><svg viewBox="0 0 24 24"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 1.8 1.8.7-1.8.7L5 20l-.7-1.8-1.8-.7 1.8-.7z"/></svg><span>List with AI</span></button>
         <button class="nav add" data-add aria-label="Add item"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg><span>Add</span></button>
         <button class="nav" data-view="sold"><svg viewBox="0 0 24 24"><path d="M21.4 11.6l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7c0 .6.2 1.1.6 1.4l9 9a2 2 0 0 0 2.8 0l7-7a2 2 0 0 0 0-2.8zM6.5 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg><span>Sold</span></button>
         <button class="nav" data-view="expenses"><svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v14l3-2 3 2 3-2 3 2 3-2 3 2V5a2 2 0 0 0-2-2zm-3 12H8v-2h8zm0-4H8V9h8zm0-4H8V5h8z"/></svg><span>Expenses</span></button>
@@ -56,6 +56,6 @@
   </div>
   <div id="toast" class="toast"></div>
 
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
