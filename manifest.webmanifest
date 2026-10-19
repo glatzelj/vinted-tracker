@@ -1,11 +1,11 @@
 {
-  "name": "Vinted Tracker",
-  "short_name": "Vinted Tracker",
+  "name": "VintVault",
+  "short_name": "VintVault",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#FFF8F0",
-  "theme_color": "#007782",
+  "background_color": "#0A0E0F",
+  "theme_color": "#0A0E0F",
   "icons": [
     { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
