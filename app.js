@@ -150,8 +150,8 @@
     const h = now.getHours();
     const greet = h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening';
     return `<div class="top">
-      ${logo ? '<span class="logo-mark"><img src="logo.jpg" alt=""></span>' : ''}<div class="hello"><small>${greet} · ${DAYS[now.getDay()]} ${now.getDate()} ${MONTHS_LONG[now.getMonth()]}</small>
-      <h1>${esc(title)}${accent ? (title ? ' ' : '') + '<em>' + esc(accent) + '</em>' : ''}</h1></div>
+      <div class="hd-left">${logo ? '<span class="logo-mark"><img src="logo.jpg" alt=""></span>' : ''}<div class="hello"><small>${greet} · ${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}</small>
+      <h1>${esc(title)}${accent ? (title ? ' ' : '') + '<em>' + esc(accent) + '</em>' : ''}</h1></div></div>
       <div class="top-btns"><button class="icon-btn" data-refresh aria-label="Refresh">${ICON.refresh}</button><button class="icon-btn" data-goto="settings" aria-label="Settings">${ICON.gear}</button></div>
     </div>${sub ? `<p class="sub">${sub}</p>` : ''}`;
   }
@@ -514,6 +514,12 @@
   const L = name => (S.data.lists[name] || []);
   const opts = (arr, cur, blank, label) => (blank ? '<option value=""></option>' : '') + Array.from(new Set(arr.concat(cur ? [cur] : []))).map(o => `<option value="${esc(o)}" ${o === cur ? 'selected' : ''}>${esc(label ? label(o) : o)}</option>`).join('');
   function field(label, html, full) { return `<div class="f${full ? ' full' : ''}"><label>${label}</label>${html}</div>`; }
+  // Date box that always reads DD/MM/YYYY; the real date picker sits invisibly on top, so tapping still opens it.
+  function dateInput(attrs, v) {
+    return `<label class="dt"><span>${v ? ukDate(v) : 'DD/MM/YYYY'}</span><input ${attrs} type="date" value="${esc(v || '')}"></label>`;
+  }
+  document.addEventListener('input', e => { const t = e.target; if (t.type === 'date' && t.parentNode.classList.contains('dt')) t.previousElementSibling.textContent = t.value ? ukDate(t.value) : 'DD/MM/YYYY'; });
+  document.addEventListener('change', e => { const t = e.target; if (t.type === 'date' && t.parentNode.classList.contains('dt')) t.previousElementSibling.textContent = t.value ? ukDate(t.value) : 'DD/MM/YYYY'; });
   function money(name, v) { return `<div class="money"><input name="${name}" type="number" inputmode="decimal" step="0.01" min="0" value="${isNum(v) ? v : ''}" placeholder="0.00"></div>`; }
   const closeBtn = `<button class="x" data-close aria-label="Close">${ICON.close}</button>`;
 
@@ -527,7 +533,7 @@
         ${field('Condition', `<select name="condition">${opts(L('Condition'), i.condition, true)}</select>`)}
       </div></div>
       <div class="box"><h4>Buying and Listing</h4><div class="fields">
-        ${field('Bought on', `<input name="boughtOn" type="date" value="${esc(i.boughtOn)}">`)}
+        ${field('Bought on', dateInput('name="boughtOn"', i.boughtOn))}
         ${field('Bought From', `<select name="boughtFrom">${opts(L('Source'), i.boughtFrom, true)}</select>`)}
         ${field('Cost', money('cost', i.cost))}
         ${field('Listed At', money('listedAt', i.listedAt))}
@@ -596,7 +602,7 @@
   function soldBox(i) {
     return `<div class="box sold-box"><h4>Sale</h4><div class="fields">
       ${field('Sold For', money('soldFor', i.soldFor))}
-      ${field('Sold on', `<input name="soldOn" type="date" value="${esc(i.soldOn)}">`)}
+      ${field('Sold on', dateInput('name="soldOn"', i.soldOn))}
       ${field('Sale Status', `<select name="saleStatus">${opts(['Sold', 'In transit'], i.status === 'In transit' ? i.status : 'Sold', false, tc)}</select>`)}
       ${field('Channel', `<select name="channel">${opts(['Vinted', 'eBay', 'Depop', 'In person', 'Other'], i.channel || 'Vinted', false, tc)}</select>`)}
       ${field('Postage You Paid', money('postage', i.postage))}
@@ -697,7 +703,7 @@
     openSheet(`
       <div class="sh-top"><h2>${isNew ? 'Add an Expense' : 'Edit Expense'}</h2>${closeBtn}</div>
       <form id="exForm" class="sh-body" autocomplete="off"><div class="box"><div class="fields">
-        ${field('Date', `<input name="date" type="date" value="${esc(e.date)}">`)}
+        ${field('Date', dateInput('name="date"', e.date))}
         ${field('Amount', money('amount', e.amount))}
         ${field('Category', `<select name="category">${opts(L('Expense category'), e.category, true)}</select>`, true)}
         ${field('What Was It?', `<input name="description" value="${esc(e.description)}" placeholder="e.g. Shipping bags x10">`, true)}
@@ -888,7 +894,7 @@
         <div class="fields">
           ${field('What You Paid', money('dCost', ''))}
           ${field('Bought From', `<select id="dFrom">${opts(L('Source'), '', true)}</select>`)}
-          ${field('Bought on', `<input id="dOn" type="date" value="${esc(S.data.today)}">`)}
+          ${field('Bought on', dateInput('id="dOn"', S.data.today))}
           ${field('Category', `<select id="dCat">${opts(cats, cats.indexOf(r.category) >= 0 ? r.category : '', true)}</select>`)}
         </div>
         <input type="hidden" id="dCond" value="${esc(conds.indexOf(r.condition) >= 0 ? r.condition : '')}">
